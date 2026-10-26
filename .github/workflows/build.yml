@@ -1,0 +1,44 @@
+name: Build unsigned TermiWatch
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode version
+        run: xcodebuild -version
+      - name: Build iPhone and embedded Watch apps without signing
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project TermiWatch.xcodeproj \
+            -scheme TermiWatch \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee build.log
+      - name: Package unsigned apps
+        run: tar -czf TermiWatch-unsigned.tar.gz -C build/Build/Products/Debug-iphoneos TermiWatch.app
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+      - name: Upload unsigned apps
+        uses: actions/upload-artifact@v4
+        with:
+          name: TermiWatch-unsigned
+          path: TermiWatch-unsigned.tar.gz
